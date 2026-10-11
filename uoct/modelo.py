@@ -47,3 +47,21 @@ def exacto(N, w, F, p, C=(), B=None, solver="highs"):
     m.obj = pyo.Objective(expr=m.f, sense=pyo.maximize)
     X = _resolver(m, solver)
     return X, cobertura(X, N, w)
+
+
+def lexicografico(N, w, F, p, C, solver="highs"):
+    """Primero la máxima cobertura f*; entre las soluciones con f*, la que conserva más
+    ubicaciones de C. Es el orden lexicográfico del coaching (▶ 15:26–17:31), resuelto en
+    dos fases en vez de ponderar por una cota: el mismo orden, sin errores numéricos con
+    pesos reales."""
+    _, fstar = exacto(N, w, F, p, solver=solver)
+    m = _modelo(N, w, F, p)
+    m.piso = pyo.Constraint(expr=m.f >= fstar - 1e-6 * max(1.0, fstar))
+    m.obj = pyo.Objective(expr=sum(m.x[j] for j in F if j in set(C)), sense=pyo.maximize)
+    X = _resolver(m, solver)
+    return X, cobertura(X, N, w), len(X & set(C))
+
+
+def curva_B(N, w, F, p, C, Bmax, solver="highs"):
+    """f*(B) para B = 0..Bmax: la mejor cobertura con a lo más B ubicaciones nuevas."""
+    return [(B, exacto(N, w, F, p, C, B, solver)[1]) for B in range(Bmax + 1)]
