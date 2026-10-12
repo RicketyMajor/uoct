@@ -11,7 +11,7 @@ Prototipo del proyecto semestral: ¿dónde deberían estar las cámaras de la UO
 
 `run.py` escribe en `out/` (no va al repo):
 
-- `tablas/` — cada tabla en `.csv` y en `.tex` (para `\input` en el informe): `control` (contraste con el Estado del proyecto), `sensibilidad` (radio, peso y sentido), `curva` (cobertura óptima con a lo más B traslados), `traslados` (plan de la transición lexicográfica), `traslados_B10` (plan con 10 traslados), `intercambio` (voraz de a una cámara según el umbral δ), `observabilidad` (cuánto se deduce con cada configuración, con y sin centroides), `curva_observabilidad` (rango del voraz de observabilidad según las cámaras).
+- `tablas/` — cada tabla en `.csv` y en `.tex` (para `\input` en el informe): `control` (contraste con el Estado del proyecto), `sensibilidad` (radio, peso y sentido), `curva` (cobertura óptima con a lo más B traslados), `traslados` (plan de la transición lexicográfica), `traslados_B10` (plan con 10 traslados), `intercambio` (voraz de a una cámara según el umbral δ), `red_observabilidad` (tramos, nodos y rango completo de las dos variantes), `observabilidad` (cuánto se deduce con cada configuración, con y sin centroides), `curva_observabilidad` (rango del voraz de observabilidad según las cámaras).
 - `figuras/` — `estado.png`, `transicion.png`, `transicion_B10.png`, `curva.png`, `sensibilidad.png`, `curva_observabilidad.png`, `observabilidad_actual.png` y `observabilidad_voraz.png` (tramos medidos, deducidos y sin información).
 - `mapa.html` — mapa interactivo (cruces, cámaras de hoy, configuración objetivo y traslados).
 
