@@ -31,8 +31,8 @@ Prototipo del proyecto semestral: ¿dónde deberían estar las cámaras de la UO
 
 ## Parámetros (arriba de `run.py`)
 
-- `R_BASE = 300` m y `RADIOS` para la sensibilidad. 300 m es el radio de Dell'Olmo et al. (2014) y de Wheeler (2026), los dos MCLP de cámaras más cercanos a este problema.
-- `DELTAS`: ganancia neta mínima (en % de la cobertura total) para que el voraz de a una cámara haga un traslado.
+- `R_BASE = 300` m y `RADIOS` para la sensibilidad (0 a 400 m). 300 m es una referencia, del orden de los ~305 m en línea recta de Wheeler (2026), que el autor llama «deliberadamente generosos»; 50 y 100 m son el alcance visual que usan Boldt et al. (2026). Ningún trabajo revisado da un radio para observar el tránsito.
+- `DELTAS`: ganancia neta mínima (en % del peso total de los cruces) para que el voraz de a una cámara haga un traslado.
 - `B_PLAN = 10`: traslados del plan que se dibuja aparte.
 - `SOLVER = "highs"`; con licencia de Gurobi, `"gurobi"`.
 
