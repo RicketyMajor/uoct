@@ -122,7 +122,10 @@ def main():
     observ = pd.DataFrame([{"conservación": nr, "configuración": nc, **obs.resumen(r, X),
                             "cobertura %": 100 * cob.cobertura(X, N, w) / total}
                            for nr, r in redes.items() for nc, X in configs.items()])
-    salidas.tabla(observ, tablas, "observabilidad")
+    salidas.tabla(observ.rename(columns={"cámaras": "cruces", "tramos medidos": "medidos",
+                                         "tramos deducidos": "deducidos", "tramos identificables %": "tramos %",
+                                         "km identificables %": "km %", "tránsito identificable %": "tránsito %"}),
+                  tablas, "observabilidad")   # encabezados cortos: la tabla tiene que caber en el informe
     rc = obs.rango_completo(base)
     marcas = sorted(set(range(10, len(curva_o) + 1, 10)) | {len(C), len(curva_o)})
     salidas.tabla(pd.DataFrame([(b, 100 * curva_o[b - 1][1] / rc) for b in marcas], columns=["cámaras", "rango %"]),
