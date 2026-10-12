@@ -91,3 +91,44 @@ def identificables(r, M):
     H.add_edges_from(pares)
     puentes = {(min(x, y), max(x, y)) for x, y in nx.bridges(H)}
     return set(M) | {t for t in libres if pares[_par(r, t)] == 1 and _par(r, t) in puentes}
+
+
+def voraz(r, candidatos, B):
+    """Voraz perezoso sobre el rango, que es submodular: garantía 1 − 1/e (Li et al., 2023).
+    Devuelve [(nodo, rango acumulado)]; para cuando ninguna cámara más aporta."""
+    c0, libre, M, actual, orden = _componentes(r, _todos(r)), _todos(r), set(), 0, []
+
+    def ganancia(j):
+        nuevos = [t for t in r.incidentes.get(j, []) if t not in M]
+        if not nuevos:
+            return 0, nuevos
+        prueba = libre.copy()
+        prueba[nuevos] = False
+        return len(M) + len(nuevos) - _componentes(r, prueba) + c0 - actual, nuevos
+
+    pila = [(-ganancia(j)[0], j) for j in candidatos]
+    heapq.heapify(pila)
+    while pila and len(orden) < B:
+        _, j = heapq.heappop(pila)
+        g, nuevos = ganancia(j)  # la ganancia vieja es cota superior: solo puede haber bajado
+        if pila and g < -pila[0][0]:
+            heapq.heappush(pila, (-g, j))
+            continue
+        if g <= 0:
+            break
+        M.update(nuevos)
+        libre[nuevos] = False
+        actual += g
+        orden.append((j, actual))
+    return orden
+
+
+def resumen(r, X):
+    """Cuánto se deduce con las cámaras de X: tramos, km, tránsito (proxy) y rango."""
+    M = medidos(r, X)
+    ident = list(identificables(r, M))
+    return {"cámaras": len(set(X)), "tramos medidos": len(M), "tramos deducidos": len(ident) - len(M),
+            "tramos identificables %": 100 * len(ident) / len(r.u),
+            "km identificables %": 100 * r.largo[ident].sum() / r.largo.sum(),
+            "tránsito identificable %": 100 * r.flujo[ident].sum() / r.flujo.sum(),
+            "rango %": 100 * rango(r, M) / rango_completo(r)}

@@ -67,3 +67,25 @@ def test_coincide_con_el_algebra_en_redes_al_azar():
         assert obs.rango(r, M) == rk
         assert obs.identificables(r, M) == ident
         assert obs.rango_completo(r) == len(r.u) - np.linalg.matrix_rank(matriz_B(r))
+
+
+def test_el_voraz_perezoso_elige_siempre_la_mayor_ganancia():
+    azar = random.Random(7)
+    nodos = list(range(1, 11))
+    arcos = [(azar.choice(nodos), azar.choice(nodos)) for _ in range(30)]
+    r = red_de(arcos, nodos, nodos)
+    orden = obs.voraz(r, nodos, len(nodos))
+    X, previo = [], 0
+    for j, rk in orden:
+        mejor = max(obs.rango(r, obs.medidos(r, X + [c])) for c in nodos if c not in X)
+        assert rk == mejor and rk > previo
+        X.append(j)
+        previo = rk
+    assert previo == obs.rango_completo(r)      # sin tope, llega a observarlo todo
+
+
+def test_resumen_de_una_configuracion():
+    r = red_de([(1, 2), (2, 3), (3, 1)], dentro=[1, 2, 3], conserva=[1, 2, 3])
+    s = obs.resumen(r, [1])
+    assert s["tramos medidos"] == 2 and s["tramos deducidos"] == 1
+    assert s["tramos identificables %"] == 100.0 and s["rango %"] == 100.0
