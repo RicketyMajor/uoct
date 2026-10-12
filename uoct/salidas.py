@@ -16,7 +16,9 @@ def tabla(df, carpeta, nombre):
     carpeta = Path(carpeta)
     carpeta.mkdir(parents=True, exist_ok=True)
     df.to_csv(carpeta / f"{nombre}.csv", index=False)
-    (carpeta / f"{nombre}.tex").write_text(df.to_latex(index=False, float_format="%.1f"), encoding="utf-8")
+    # Todo a texto con coma decimal: el `decimal` de pandas falla con columnas de enteros.
+    tex = df.apply(lambda col: col.map(lambda v: f"{v:.1f}".replace(".", ",") if isinstance(v, float) else str(v)))
+    (carpeta / f"{nombre}.tex").write_text(tex.to_latex(index=False, escape=True), encoding="utf-8")
 
 
 def puntos(G, nodos):

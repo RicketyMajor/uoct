@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+from shapely.geometry import Point
 
 from uoct import cobertura as cob
 from uoct import datos, grafo, modelo, salidas, transicion
@@ -54,6 +55,13 @@ def main():
     control = pd.DataFrame({"indicador": list(ESTADO), "Estado del proyecto": list(ESTADO.values()),
                             "este prototipo": pd.Series([medido[k] for k in ESTADO], dtype=object)})
     salidas.tabla(control, tablas, "control")
+    tramos = [d["length"] for u, v, d in G.to_undirected().edges(data=True)
+              if pol.contains(Point(G.nodes[u]["x"], G.nodes[u]["y"])) and pol.contains(Point(G.nodes[v]["x"], G.nodes[v]["y"]))]
+    red = pd.DataFrame({"indicador": ["Nodos (con 500 m de margen)", "Arcos dirigidos (con margen)", "Tramos dentro de la comuna",
+                                      "Largo mediano de tramo dentro de la comuna (m)"],
+                        "valor": pd.Series([G.number_of_nodes(), G.number_of_edges(), len(tramos),
+                                            round(float(pd.Series(tramos).median()), 1)], dtype=object)})
+    salidas.tabla(red, tablas, "red")
 
     pesos = {"jerarquía": cob.pesos_jerarquia(G, F), "uniforme": {i: 1 for i in F}}
     d = cob.distancias(G, F, max(RADIOS))
