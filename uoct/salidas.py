@@ -88,3 +88,47 @@ def mapa_html(G, capas, ruta, flechas=()):
         grupo.add_to(m)
     folium.LayerControl().add_to(m)
     m.save(str(ruta))
+
+
+def figura_curva_obs(curva, rango_completo, p, ruta):
+    """Rango alcanzado por el voraz de observabilidad contra el número de cámaras."""
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.plot(range(1, len(curva) + 1), [100 * rk / rango_completo for _, rk in curva], "-", color="tab:blue")
+    ax.axvline(p, color="gray", ls="--", lw=1)
+    ax.text(p + 5, 3, f"{p} cámaras", color="gray", fontsize=8)
+    ax.set_xlabel("Cámaras (voraz de observabilidad, sobre los cruces semaforizados)")
+    ax.set_ylabel("Flujos independientes conocidos (% del rango completo)")
+    ax.grid(alpha=0.3)
+    fig.savefig(ruta, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+
+
+def mapa_tramos(G, poligono, r, X, ruta, titulo):
+    """Tramos medidos por las cámaras de X, deducidos por conservación y ciegos."""
+    from matplotlib.lines import Line2D
+
+    from .observabilidad import identificables, medidos
+    M = medidos(r, X)
+    deducidos = identificables(r, M) - M
+    aristas = ox.graph_to_gdfs(G, nodes=False).loc[list(zip(r.u, r.v, r.clave))].reset_index(drop=True)
+    estado = ["medido" if t in M else "deducido" if t in deducidos else "ciego" for t in range(len(r.u))]
+    estilos = {"ciego": ("#c8c8c8", 0.5), "deducido": ("tab:blue", 1.8), "medido": ("tab:green", 1.8)}
+    fig, ax = plt.subplots(figsize=(8, 8))
+    for e, (color, ancho) in estilos.items():
+        aristas[[s == e for s in estado]].plot(ax=ax, color=color, linewidth=ancho)
+    gpd.GeoSeries([poligono], crs=G.graph["crs"]).boundary.plot(ax=ax, color="black", linewidth=0.8)
+    puntos(G, set(X)).plot(ax=ax, color="black", markersize=10)
+    x0, y0, x1, y1 = poligono.bounds
+    ax.set_xlim(x0 - 150, x1 + 150)
+    ax.set_ylim(y0 - 150, y1 + 150)
+    cx.add_basemap(ax, crs=G.graph["crs"], source=cx.providers.Esri.WorldGrayCanvas, attribution_size=6)
+    ax.set_axis_off()
+    ax.set_title(titulo)
+    n = {e: estado.count(e) for e in estilos}
+    ax.legend(handles=[Line2D([], [], color="tab:green", lw=2, label=f"Medido por una cámara ({n['medido']})"),
+                       Line2D([], [], color="tab:blue", lw=2, label=f"Deducido por conservación ({n['deducido']})"),
+                       Line2D([], [], color="#c8c8c8", lw=2, label=f"Sin información ({n['ciego']})"),
+                       Line2D([], [], color="black", marker="o", lw=0, label="Cámara")],
+              loc="lower left", fontsize=8)
+    fig.savefig(ruta, dpi=200, bbox_inches="tight")
+    plt.close(fig)

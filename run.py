@@ -9,6 +9,7 @@ from shapely.geometry import Point
 
 from uoct import cobertura as cob
 from uoct import datos, grafo, modelo, salidas, transicion
+from uoct import observabilidad as obs
 
 RAIZ = Path(__file__).parent
 DATA, OUT = RAIZ / "data", RAIZ / "out"
@@ -109,11 +110,36 @@ def main():
                           ("Configuración objetivo", Xl, "blue")], OUT / "mapa.html",
                       flechas=[(o, dd) for o, dd, _ in plan])
 
+    # Observabilidad: cuántos flujos de tramo se deducen con las cámaras (supuestos en uoct/observabilidad.py)
+    dentro = {x for x, dat in G.nodes(data=True) if pol.contains(Point(dat["x"], dat["y"]))}
+    redes = {"toda la comuna": obs.red(G, dentro, dentro), "solo F (centroides)": obs.red(G, dentro, set(F))}
+    base = redes["toda la comuna"]
+    Xe, _ = modelo.exacto(N, w, F, len(C), solver=SOLVER)
+    curva_o = obs.voraz(base, F, len(F))
+    Xo = [j for j, _ in curva_o[:len(C)]]
+    configs = {"Actual": C, "Actual en línea": C_ef, "MCLP exacto": Xe, "MCLP lexicográfica": Xl,
+               "Voraz de observabilidad": Xo, f"Todos los cruces F ({len(F)})": F}
+    observ = pd.DataFrame([{"conservación": nr, "configuración": nc, **obs.resumen(r, X),
+                            "cobertura %": 100 * cob.cobertura(X, N, w) / total}
+                           for nr, r in redes.items() for nc, X in configs.items()])
+    salidas.tabla(observ, tablas, "observabilidad")
+    rc = obs.rango_completo(base)
+    marcas = sorted(set(range(10, len(curva_o) + 1, 10)) | {len(C), len(curva_o)})
+    salidas.tabla(pd.DataFrame([(b, 100 * curva_o[b - 1][1] / rc) for b in marcas], columns=["cámaras", "rango %"]),
+                  tablas, "curva_observabilidad")
+    salidas.figura_curva_obs(curva_o, rc, len(C), figuras / "curva_observabilidad.png")
+    salidas.mapa_tramos(G, pol, base, C, figuras / "observabilidad_actual.png", "Flujos de tramo con las cámaras actuales")
+    salidas.mapa_tramos(G, pol, base, Xo, figuras / "observabilidad_voraz.png",
+                        f"Flujos de tramo con {len(Xo)} cámaras del voraz de observabilidad")
+
     print(control.to_string(index=False))
     print(sens.round(1).to_string(index=False))
     print(f"Caso base R = {R_BASE} m: f(C) = {100 * cob.cobertura(C, N, w) / total:.1f} %, "
           f"f* = {100 * fl / total:.1f} %, {len(plan)} traslados, {sum(m for *_, m in plan) / 1000:.1f} km; "
           f"se quedan {quedan} de {len(set(C))} ubicaciones")
+    print(observ.round(1).to_string(index=False))
+    print(f"Voraz de observabilidad: {len(curva_o)} cámaras llegan al {100 * curva_o[-1][1] / rc:.1f} % del rango "
+          f"({rc} flujos independientes en {len(base.u)} tramos)")
 
 
 if __name__ == "__main__":
