@@ -4,7 +4,9 @@ import argparse
 import sys
 from pathlib import Path
 
+import geopandas as gpd
 import pandas as pd
+from scipy.spatial import cKDTree
 from shapely.geometry import Point
 
 from uoct import cobertura as cob
@@ -14,7 +16,7 @@ from uoct import observabilidad as obs
 RAIZ = Path(__file__).parent
 DATA, OUT = RAIZ / "data", RAIZ / "out"
 INVENTARIO = DATA / "Inventario_CCTV_RM_Actualizado_31-08-2026.xlsx"
-RADIOS = [0, 150, 200, 250, 300, 400]   # m, por la red
+RADIOS = [0, 50, 100, 150, 200, 250, 300, 400]   # m, por la red (50–100: el alcance visual de Boldt et al., 2026)
 R_BASE = 300                            # m: el que usan Dell'Olmo et al. (2014) y Wheeler (2026); ver el informe
 DELTAS = [0, 0.25, 0.5, 1.0]            # ganancia neta mínima para trasladar, en % de la cobertura total
 B_PLAN = 10                             # traslados del plan que se dibuja aparte (el codo de la curva)
@@ -58,10 +60,20 @@ def main():
     salidas.tabla(control, tablas, "control")
     tramos = [d["length"] for u, v, d in G.to_undirected().edges(data=True)
               if pol.contains(Point(G.nodes[u]["x"], G.nodes[u]["y"])) and pol.contains(Point(G.nodes[v]["x"], G.nodes[v]["y"]))]
-    red = pd.DataFrame({"indicador": ["Nodos (con 500 m de margen)", "Arcos dirigidos (con margen)", "Tramos dentro de la comuna",
-                                      "Largo mediano de tramo dentro de la comuna (m)"],
+    inv = datos.leer_inventario(INVENTARIO).dropna(subset=["lat", "lon"])
+    dentro_pol = gpd.GeoSeries(gpd.points_from_xy(inv["lon"], inv["lat"]), crs=4326).to_crs(G.graph["crs"]).within(pol)
+    ajenas = int((dentro_pol.to_numpy() & (inv["comuna"].fillna("") != "Santiago").to_numpy()).sum())
+    pares_F = len(cKDTree([(G.nodes[j]["x"], G.nodes[j]["y"]) for j in F]).query_pairs(30))
+    red = pd.DataFrame({"indicador": ["Nodos (con 500 m de margen)", "Arcos dirigidos (con margen)",
+                                      "Calles dentro de la comuna (sin sentido, los dos extremos dentro)",
+                                      "Largo mediano de esas calles (m)",
+                                      "Pares de nodos de F a menos de 30 m entre sí",
+                                      "Cámaras a más de 30 m de su cruce", "Distancia máxima cámara-cruce (m)",
+                                      "Cámaras dentro de la comuna sin rótulo «Santiago» (no se usan)"],
                         "valor": pd.Series([G.number_of_nodes(), G.number_of_edges(), len(tramos),
-                                            round(float(pd.Series(tramos).median()), 1)], dtype=object)})
+                                            round(float(pd.Series(tramos).median()), 1), pares_F,
+                                            int((cams["metros"] > 30).sum()), round(float(cams["metros"].max()), 1),
+                                            ajenas], dtype=object)})
     salidas.tabla(red, tablas, "red")
 
     pesos = {"jerarquía": cob.pesos_jerarquia(G, F), "uniforme": {i: 1 for i in F}}
@@ -82,7 +94,7 @@ def main():
     plan = transicion.hungaro(G, transicion.por_mover(C, Xl), sorted(Xl - set(C)))
     salidas.tabla(pd.DataFrame(plan, columns=["desde (nodo)", "hasta (nodo)", "metros"]), tablas, "traslados")
     inter = {pct: transicion.voraz_intercambio(N, w, F, C, pct / 100 * total) for pct in DELTAS}
-    salidas.tabla(pd.DataFrame([{"delta %": k, "traslados": len(v) - 1, "f %": 100 * v[-1][-1] / total}
+    salidas.tabla(pd.DataFrame([{"delta %": f"{k:g}".replace(".", ","), "traslados": len(v) - 1, "f %": 100 * v[-1][-1] / total}
                                 for k, v in inter.items()]), tablas, "intercambio")
 
     fuera = set(cams.loc[~cams["en_linea"], "nodo"])
@@ -122,6 +134,9 @@ def main():
     observ = pd.DataFrame([{"conservación": nr, "configuración": nc, **obs.resumen(r, X),
                             "cobertura %": 100 * cob.cobertura(X, N, w) / total}
                            for nr, r in redes.items() for nc, X in configs.items()])
+    salidas.tabla(pd.DataFrame([{"conservación": nr, "tramos (arcos con un extremo en la comuna)": len(r.u),
+                                 "nodos (con el virtual)": r.n, "rango completo": obs.rango_completo(r)}
+                                for nr, r in redes.items()]), tablas, "red_observabilidad")
     salidas.tabla(observ.rename(columns={"cámaras": "cruces", "tramos medidos": "medidos",
                                          "tramos deducidos": "deducidos", "tramos identificables %": "tramos %",
                                          "km identificables %": "km %", "tránsito identificable %": "tránsito %"}),
