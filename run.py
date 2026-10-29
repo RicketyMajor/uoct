@@ -110,6 +110,17 @@ def main():
     Xb, fb = modelo.exacto(N, w, F, len(C), set(C), B_PLAN, solver=SOLVER)
     plan_b = transicion.hungaro(G, transicion.por_mover(C, Xb), sorted(Xb - set(C)))
     salidas.tabla(pd.DataFrame(plan_b, columns=["desde (nodo)", "hasta (nodo)", "metros"]), tablas, f"traslados_B{B_PLAN}")
+    # Supuesto S5 al revés: solo vuelven a operar las cámaras trasladadas; un sitio que se queda cubre
+    # si tiene una cámara en línea (con dos cámaras, se queda la que está en línea).
+    rec = []
+    for nombre, X, fX in [(f"Óptimo con B = {B_PLAN}", Xb, fb), ("Lexicográfica", Xl, fl)]:
+        quedan = X & set(C)
+        f_rec = cob.cobertura((X - set(C)) | (quedan & set(C_ef)), N, w)
+        assert f_rec <= fX
+        rec.append({"plan": nombre, "traslados": len(X - set(C)),
+                    "sin cámara en línea": len(quedan - set(C_ef)),
+                    "56 operativas %": 100 * fX / total, "solo trasladadas %": 100 * f_rec / total})
+    salidas.tabla(pd.DataFrame(rec), tablas, "recuperacion")
     salidas.mapa(G, pol, [(set(C) - Xb, dict(color="tab:red", markersize=22, label="Cámara que se mueve")),
                           (set(C) & Xb, dict(color="tab:green", markersize=22, label="Cámara que se queda")),
                           (Xb - set(C), dict(color="tab:blue", markersize=22, marker="^", label="Ubicación nueva"))],
