@@ -35,6 +35,8 @@ class Red:
 def red(G, dentro, conserva):
     """Tramos: arcos dirigidos de G con algún extremo en `dentro` (la comuna).
     conserva ⊆ dentro; los demás nodos se contraen al nodo virtual."""
+    # Un nodo fuera de `dentro` tiene solo parte de sus arcos en la red: conservar ahí inventa restricciones.
+    assert set(conserva) <= set(dentro), "conserva debe estar dentro de la comuna"
     idx = {x: i + 1 for i, x in enumerate(sorted(conserva))}
     u, v, clave, largo, flujo, inc = [], [], [], [], [], {}
     for x, y, k, d in G.edges(keys=True, data=True):

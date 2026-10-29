@@ -124,7 +124,7 @@ def main():
 
     # Observabilidad: cuántos flujos de tramo se deducen con las cámaras (supuestos en uoct/observabilidad.py)
     dentro = {x for x, dat in G.nodes(data=True) if pol.contains(Point(dat["x"], dat["y"]))}
-    redes = {"toda la comuna": obs.red(G, dentro, dentro), "solo F (centroides)": obs.red(G, dentro, set(F))}
+    redes = {"toda la comuna": obs.red(G, dentro, dentro), "solo F (centroides)": obs.red(G, dentro, set(F) & dentro)}
     base = redes["toda la comuna"]
     Xe, _ = modelo.exacto(N, w, F, len(C), solver=SOLVER)
     curva_o = obs.voraz(base, F, len(F))
